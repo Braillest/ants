@@ -1,0 +1,105 @@
+services:
+  queen_aspnet:
+    build:
+      context: .
+      dockerfile: ./docker/queen/aspnet/Dockerfile
+    container_name: ants_queen_aspnet
+    env_file:
+      - ./docker/queen/aspnet/.env.local
+    image: ants_queen_aspnet
+    networks:
+      - ants_queen
+    volumes:
+      - ./src/aspnet:/aspnet
+  queen_fastapi:
+    build:
+      context: .
+      dockerfile: ./docker/queen/fastapi/Dockerfile
+    container_name: ants_queen_fastapi
+    env_file:
+      - ./docker/queen/fastapi/.env.local
+    image: ants_queen_fastapi
+    networks:
+      - ants_queen
+    volumes:
+      - ./src/fastapi:/fastapi
+  queen_flower:
+    build:
+      context: .
+      dockerfile: ./docker/queen/flower/Dockerfile
+    container_name: ants_queen_flower
+    env_file:
+      - ./docker/queen/flower/.env.local
+    image: ants_queen_flower
+    networks:
+      - ants_queen
+    volumes:
+      - ./src/tasks:/flower
+    ports:
+      - "5555:5555"
+  queen_mariadb:
+    build:
+      context: .
+      dockerfile: ./docker/queen/mariadb/Dockerfile
+    container_name: ants_queen_mariadb
+    env_file:
+      - ./docker/queen/mariadb/.env.local
+    image: ants_queen_mariadb
+    networks:
+      - ants_queen
+    volumes:
+      - ./docker/queen/mariadb/data:/var/lib/mysql
+  queen_nginx:
+    build:
+      context: .
+      dockerfile: ./docker/queen/nginx/Dockerfile
+    container_name: ants_queen_nginx
+    image: ants_queen_nginx
+    networks:
+      - ants_queen
+    ports:
+      - "443:443"
+    volumes:
+      - ./docker/queen/nginx/logs:/var/log/nginx
+  queen_phpmyadmin:
+    build:
+      context: .
+      dockerfile: ./docker/queen/phpmyadmin/Dockerfile
+    container_name: ants_queen_phpmyadmin
+    env_file:
+      - ./docker/queen/phpmyadmin/.env.local
+    image: ants_queen_phpmyadmin
+    networks:
+      - ants_queen
+    ports:
+      - "8080:80"
+  queen_rabbitmq:
+    build:
+      context: .
+      dockerfile: ./docker/queen/rabbitmq/Dockerfile
+    container_name: ants_queen_rabbitmq
+    env_file:
+      - ./docker/queen/rabbitmq/.env.local
+    image: ants_queen_rabbitmq
+    networks:
+      - ants_queen
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+  queen_redis:
+    build:
+      context: .
+      dockerfile: ./docker/queen/redis/Dockerfile
+    container_name: ants_queen_redis
+    image: ants_queen_redis
+    networks:
+      - ants_queen
+    ports:
+      - "6379:6379"
+    volumes:
+      - ./docker/queen/redis/data:/var/lib/redis
+      - ./docker/queen/redis/logs:/var/log/redis
+networks:
+  ants_queen:
+    name: ants_queen
+    driver: bridge

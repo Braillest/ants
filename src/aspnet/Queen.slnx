@@ -1,0 +1,5 @@
+<Solution>
+  <Project Path="Queen.API/Queen.API.csproj" />
+  <Project Path="Queen.DAL/Queen.DAL.csproj" />
+  <Project Path="Queen.Test/Queen.Test.csproj" />
+</Solution>

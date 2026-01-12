@@ -1,0 +1,11 @@
+*.local
+
+docker/queen/redis/data/*
+docker/queen/mariadb/data/*
+docker/queen/nginx/logs/*
+docker/queen/redis/logs/*
+
+bin/
+obj/
+
+!.gitkeep
