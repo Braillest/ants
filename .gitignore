@@ -7,5 +7,6 @@ docker/queen/redis/logs/*
 
 bin/
 obj/
+__pycache__
 
 !.gitkeep

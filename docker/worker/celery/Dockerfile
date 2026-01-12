@@ -1,6 +1,6 @@
 FROM ubuntu:jammy
 
-WORKDIR /celery
+WORKDIR /worker
 
 # Get latest apt updates and upgrades
 RUN apt update
@@ -17,5 +17,4 @@ RUN /env/bin/pip install --upgrade pip
 RUN /env/bin/pip install celery[librabbitmq,redis]
 RUN /env/bin/pip install requests
 
-ENTRYPOINT sleep infinity
-# ENTRYPOINT . /env/bin/activate && celery -A tasks.celery worker --loglevel=INFO
+ENTRYPOINT . /env/bin/activate && celery -A worker worker --loglevel=INFO

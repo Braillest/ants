@@ -9,6 +9,8 @@ services:
     image: ants_drone_celery
     networks:
       - ants_drone
+    volumes:
+      - ./src/tasks:/drone
 networks:
   ants_drone:
     name: ants_drone

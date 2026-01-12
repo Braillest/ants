@@ -14,8 +14,8 @@ RUN python3 -m venv /env
 
 # Install pip packages and deps
 RUN /env/bin/pip install --upgrade pip
-RUN /env/bin/pip install celery[librabbitmq,redis,auth,msgpack]
+RUN /env/bin/pip install celery[librabbitmq,redis]
+RUN /env/bin/pip install requests
 RUN /env/bin/pip install flower
 
-ENTRYPOINT sleep infinity
-# ENTRYPOINT . /env/bin/activate && celery -A tasks.celery flower --loglevel=INFO
+ENTRYPOINT . /env/bin/activate && celery flower --broker=$CELERY_BROKER_URL --loglevel=INFO

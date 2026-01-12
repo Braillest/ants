@@ -9,6 +9,8 @@ services:
     image: ants_worker_celery
     networks:
       - ants_worker
+    volumes:
+      - ./src/tasks:/worker
 networks:
   ants_worker:
     name: ants_worker
