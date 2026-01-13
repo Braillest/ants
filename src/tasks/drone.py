@@ -4,8 +4,9 @@ from celery import Celery
 
 backend = os.getenv("CELERY_RESULT_BACKEND")
 broker = os.getenv("CELERY_BROKER_URL")
-celery = Celery("drone", backend=backend, broker=broker)
+drone = Celery("ants", backend=backend, broker=broker)
+drone.config_from_object("config.drone")
 
-@celery.task
+@drone.task
 def add(x, y):
     return x + y

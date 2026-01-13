@@ -16,5 +16,6 @@ RUN python3 -m venv /env
 RUN /env/bin/pip install --upgrade pip
 RUN /env/bin/pip install celery[librabbitmq,redis]
 RUN /env/bin/pip install requests
+RUN /env/bin/pip install gevent
 
 ENTRYPOINT . /env/bin/activate && celery -A drone worker --loglevel=INFO
