@@ -36,12 +36,12 @@ worker = dict(
     worker_pool="prefork",
     worker_concurrency=os.cpu_count(),
     worker_prefetch_multiplier=1,
-    worker_max_tasks_per_child=10,
-    worker_max_memory_per_child=2048,
-    task_acks_late=True,
-    task_reject_on_worker_lost=True,
-    task_soft_time_limit=25 * 60,
-    task_time_limit=30 * 60,
+    # worker_max_tasks_per_child=10,
+    # worker_max_memory_per_child=12288,  # 20 * 1024 = 20 MB,
+    # task_acks_late=True,
+    # task_reject_on_worker_lost=True,
+    # task_soft_time_limit=25 * 60,
+    # task_time_limit=30 * 60,
 )
 
 # --------------------
@@ -61,7 +61,7 @@ drone = dict(
     worker_pool="gevent",
     worker_concurrency=200,
     worker_prefetch_multiplier=10,
-    task_acks_late=False,
-    task_soft_time_limit=4 * 60,
-    task_time_limit=5 * 60,
+    # task_acks_late=False,
+    # task_soft_time_limit=4 * 60,
+    # task_time_limit=5 * 60,
 )
