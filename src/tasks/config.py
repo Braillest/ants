@@ -58,7 +58,6 @@ drone = dict(
     worker_hijack_root_logger=worker_hijack_root_logger,
     task_routes=task_routes,
     task_default_queue="drone",
-    worker_pool="gevent",
     worker_concurrency=200,
     worker_prefetch_multiplier=10,
     # task_acks_late=False,

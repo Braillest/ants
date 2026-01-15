@@ -1,6 +1,6 @@
 from celery import Celery
 import difflib
-import liblouis
+import louis
 import logging
 import os
 import requests

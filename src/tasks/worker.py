@@ -1,5 +1,4 @@
 import os
-import requests
 from celery import Celery
 
 backend = os.getenv("CELERY_RESULT_BACKEND")

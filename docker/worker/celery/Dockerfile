@@ -1,20 +1,26 @@
-FROM ubuntu:jammy
+FROM python:3.13-slim-bookworm
 
 WORKDIR /worker
 
-# Get latest apt updates and upgrades
+# Update base image
 RUN apt update
 RUN apt upgrade -y
-
-# Install python3
-RUN apt install -y python3-full
+RUN apt install -y git
+RUN apt install -y ffmpeg
 
 # Create new virtual environment to install dependencies into
-RUN python3 -m venv /env
+RUN python -m venv /env
 
-# Install pip packages and deps
+# Install celery
 RUN /env/bin/pip install --upgrade pip
 RUN /env/bin/pip install celery[librabbitmq,redis]
-RUN /env/bin/pip install requests
 
-ENTRYPOINT . /env/bin/activate && celery -A worker worker --loglevel=INFO
+# Install build123d
+RUN /env/bin/pip install git+https://github.com/gumyr/build123d
+
+# Create non-root user
+RUN groupadd -r celery
+RUN useradd -r -g celery celery
+USER celery
+
+ENTRYPOINT /env/bin/celery -A worker worker --loglevel=INFO
