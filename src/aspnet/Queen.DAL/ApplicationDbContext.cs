@@ -1,4 +1,5 @@
 using Queen.DAL.Entity;
+using Queen.DAL.Entity.Users;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 
@@ -10,7 +11,11 @@ public class ApplicationDbContext : DbContext
 
     public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options): base(options){}
 
+    public DbSet<LoginAttempt> LoginAttempts { get; set; } = null!;
+    public DbSet<LoginSession> LoginSessions { get; set; } = null!;
     public DbSet<User> Users { get; set; } = null!;
+    public DbSet<FilePointer> FilePointers { get; set; } = null!;
+    public DbSet<Project> Projects { get; set; } = null!;
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     {

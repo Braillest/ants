@@ -1,4 +1,4 @@
-using Queen.DAL.Entity;
+using Queen.DAL.Entity.Users;
 
 namespace Queen.DAL.Repository;
 

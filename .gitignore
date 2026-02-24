@@ -1,12 +1,19 @@
+# Ignore local ENV files
 *.local
 
-docker/queen/redis/data/*
-docker/queen/mariadb/data/*
-docker/queen/nginx/logs/*
-docker/queen/redis/logs/*
+# Ignore data volumes
+docker/development/queen/redis/data/*
+docker/development/queen/mariadb/data/*
 
-bin/
-obj/
+# Ignore log volumes
+docker/development/queen/nginx/logs/*
+docker/development/queen/redis/logs/*
+
+# Ignore build outputs
+bin
+obj
 __pycache__
+node_modules
 
+# Keep directory structure
 !.gitkeep
