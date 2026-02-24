@@ -10,3 +10,4 @@ cp -n docker/development/queen/nginx/ssl.conf docker/development/queen/nginx/ssl
 cp -n docker/development/queen/phpmyadmin/.env docker/development/queen/phpmyadmin/.env.local
 cp -n docker/development/queen/rabbitmq/.env docker/development/queen/rabbitmq/.env.local
 cp -n docker/development/queen/redis/redis.conf docker/development/queen/redis/redis.conf.local
+cp -n docker/development/queen/vue/nginx.conf docker/development/queen/vue/nginx.conf.local
