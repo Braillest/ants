@@ -1,0 +1,17 @@
+services:
+  worker_celery:
+    build:
+      context: .
+      dockerfile: docker/production/worker/celery/Dockerfile
+    container_name: ants_production_worker_celery
+    env_file:
+      - docker/production/worker/celery/.env.local
+    image: ants_production_worker_celery
+    networks:
+      - ants_production_worker
+    volumes:
+      - ./src/tasks:/worker
+networks:
+  ants_production_worker:
+    name: ants_production_worker
+    driver: bridge

@@ -1,0 +1,117 @@
+services:
+  queen_aspnet:
+    build:
+      context: .
+      dockerfile: docker/production/queen/aspnet/Dockerfile
+    container_name: ants_production_queen_aspnet
+    env_file:
+      - ./docker/production/queen/aspnet/.env.local
+    image: ants_production_queen_aspnet
+    networks:
+      - ants_production_queen
+    volumes:
+      - ./src/aspnet:/aspnet
+  queen_fastapi:
+    build:
+      context: .
+      dockerfile: docker/production/queen/fastapi/Dockerfile
+    container_name: ants_production_queen_fastapi
+    env_file:
+      - ./docker/production/queen/fastapi/.env.local
+    image: ants_production_queen_fastapi
+    networks:
+      - ants_production_queen
+    volumes:
+      - ./src/fastapi:/fastapi
+  queen_flower:
+    build:
+      context: .
+      dockerfile: docker/production/queen/flower/Dockerfile
+    container_name: ants_production_queen_flower
+    env_file:
+      - ./docker/production/queen/flower/.env.local
+    image: ants_production_queen_flower
+    networks:
+      - ants_production_queen
+    volumes:
+      - ./src/tasks:/flower
+    ports:
+      - "5555:5555"
+  queen_mariadb:
+    build:
+      context: .
+      dockerfile: docker/production/queen/mariadb/Dockerfile
+    container_name: ants_production_queen_mariadb
+    env_file:
+      - ./docker/production/queen/mariadb/.env.local
+    image: ants_production_queen_mariadb
+    networks:
+      - ants_production_queen
+    volumes:
+      - ./docker/production/queen/mariadb/data:/var/lib/mysql
+  queen_nginx:
+    build:
+      context: .
+      dockerfile: docker/production/queen/nginx/Dockerfile
+    container_name: ants_production_queen_nginx
+    image: ants_production_queen_nginx
+    networks:
+      - ants_production_queen
+    ports:
+      - "443:443"
+    volumes:
+      - ./docker/production/queen/nginx/logs:/var/log/nginx
+  queen_phpmyadmin:
+    build:
+      context: .
+      dockerfile: docker/production/queen/phpmyadmin/Dockerfile
+    container_name: ants_production_queen_phpmyadmin
+    env_file:
+      - ./docker/production/queen/phpmyadmin/.env.local
+    image: ants_production_queen_phpmyadmin
+    networks:
+      - ants_production_queen
+    ports:
+      - "8080:80"
+  queen_rabbitmq:
+    build:
+      context: .
+      dockerfile: docker/production/queen/rabbitmq/Dockerfile
+    container_name: ants_production_queen_rabbitmq
+    env_file:
+      - ./docker/production/queen/rabbitmq/.env.local
+    image: ants_production_queen_rabbitmq
+    networks:
+      - ants_production_queen
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+  queen_redis:
+    build:
+      context: .
+      dockerfile: docker/production/queen/redis/Dockerfile
+    container_name: ants_production_queen_redis
+    image: ants_production_queen_redis
+    networks:
+      - ants_production_queen
+    ports:
+      - "6379:6379"
+    volumes:
+      - ./docker/production/queen/redis/data:/var/lib/redis
+      - ./docker/production/queen/redis/logs:/var/log/redis
+  queen_vue:
+    build:
+      context: .
+      dockerfile: docker/production/queen/vue/Dockerfile
+    container_name: ants_production_queen_vue
+    image: ants_production_queen_vue
+    networks:
+      - ants_production_queen
+    volumes:
+      - ./src/vue:/vue
+    ports:
+      - "5173:5173"
+networks:
+  ants_production_queen:
+    name: ants_production_queen
+    driver: bridge

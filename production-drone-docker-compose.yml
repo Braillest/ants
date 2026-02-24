@@ -1,0 +1,17 @@
+services:
+  drone_celery:
+    build:
+      context: .
+      dockerfile: docker/production/drone/celery/Dockerfile
+    container_name: ants_production_drone_celery
+    env_file:
+      - docker/production/drone/celery/.env.local
+    image: ants_production_drone_celery
+    networks:
+      - ants_production_drone
+    volumes:
+      - ./src/tasks:/drone
+networks:
+  ants_production_drone:
+    name: ants_production_drone
+    driver: bridge
