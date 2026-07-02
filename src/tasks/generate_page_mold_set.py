@@ -1,0 +1,152 @@
+import sys
+import os
+import errno
+import math
+import time
+from build123d import *
+
+# Handle command line arguments
+if len(sys.argv) != 2:
+    print("Usage: python generate_page_mold_set.py <braille_file_path>")
+    sys.exit(1)
+
+# Validate argument file exists.
+if not os.path.isfile(sys.argv[-1]):
+    print("File does not exist: " + sys.argv[-1])
+    sys.exit(1)
+
+# Control globals
+scaling_factor = 1.005
+space_character = "\u2800"
+
+paper_w = 216
+paper_h = 280
+paper_d = 0.2
+paper_tolerance = 0.25
+
+cell_w = 6
+cell_h = 10
+cell_padding_x = 1.75
+cell_padding_y = 2.5
+cell_spacing = 2.5
+
+pin_w = 4.5
+pin_h = 9.8
+pin_d = 1.2
+
+slot_w = 5
+slot_h = 10
+slot_d = pin_d
+
+dot_r = 0.75
+dot_d = 0.5 + paper_d
+
+hole_r = 0.95
+hole_d = dot_d + paper_d
+
+negative_mold_w = slot_w + paper_tolerance + paper_w + paper_tolerance + slot_w
+negative_mold_h = paper_h
+negative_mold_d = pin_d
+
+positive_mold_w = slot_w + paper_tolerance + paper_w + paper_tolerance + slot_w
+positive_mold_h = paper_h
+positive_mold_backplate_d = 1.0
+positive_mold_rail_d = positive_mold_backplate_d + paper_d
+positive_mold_d = positive_mold_rail_d + negative_mold_d
+
+left_cell_padding_count = 3
+right_cell_padding_count = 1
+top_cell_padding_count = 1
+bottom_cell_padding_count = 1
+
+max_cell_x_count = math.floor(paper_w / cell_w)
+cell_x_count = max_cell_x_count - left_cell_padding_count - right_cell_padding_count
+
+max_cell_y_count = math.floor(paper_h / cell_h)
+cell_y_count = max_cell_y_count - top_cell_padding_count - bottom_cell_padding_count
+
+print(cell_x_count, cell_y_count)
+
+braille_file_path = str(sys.argv[-1])
+page_number = os.path.basename(braille_file_path)
+page_number = os.path.splitext(page_number)[0]
+book_name = os.path.dirname(braille_file_path)
+book_name = os.path.basename(book_name)
+braille_molds_directory = "/data/6-braille-molds/" + book_name + "/"
+os.makedirs(braille_molds_directory, exist_ok=True)
+positive_mold_file_path = braille_molds_directory + page_number + "-positive.stl"
+negative_mold_file_path = braille_molds_directory + page_number + "-negative.stl"
+base_positive_mold_file_path = "/data/0-base-stls/Positive-Castle-Zip-Mold-v9.8.stl"
+base_negative_mold_file_path = "/data/0-base-stls/Negative-Castle-Zip-Mold-v9.8.stl"
+
+if not os.path.isfile(braille_file_path):
+    raise FileNotFoundError(errno.ENOENT, os.strerror(errno.ENOENT), braille_file_path)
+
+if not os.path.isfile(base_positive_mold_file_path):
+    raise FileNotFoundError(errno.ENOENT, os.strerror(errno.ENOENT), base_positive_mold_file_path)
+
+if not os.path.isfile(base_negative_mold_file_path):
+    raise FileNotFoundError(errno.ENOENT, os.strerror(errno.ENOENT), base_negative_mold_file_path)
+
+print("Reading in file")
+start = time.time()
+
+with open(braille_file_path, "r", encoding="utf-8") as file:
+    lines = file.readlines()
+
+print(time.time() - start)
+print("Generating feature coordinates")
+start = time.time()
+
+# Generate dot and hole locations
+dot_coords = []
+hole_coords = []
+for line_index, line in enumerate(lines[0:cell_y_count]):
+    x_offset = slot_w + paper_tolerance + (3 * cell_w) + cell_padding_x
+    y_offset = (cell_y_count - line_index) * cell_h + cell_padding_y
+    text = line.rstrip()
+
+    for character in text:
+        delta = ord(character) - ord(space_character)
+        binary = f"{delta:06b}"[::-1]
+        for i, (dx, dy) in enumerate([(0, 2), (0, 1), (0, 0), (1, 2), (1, 1), (1, 0)]):
+            if binary[i] == "1":
+                dot_coords.append((x_offset + dx * cell_spacing, y_offset + dy * cell_spacing, positive_mold_backplate_d + (dot_d / 2)))
+                hole_coords.append((x_offset + dx * cell_spacing, y_offset + dy * cell_spacing, 0))
+        x_offset += cell_w
+
+print(time.time() - start)
+
+print("Generating dots")
+dot_template = Sphere(dot_r, arc_size1=0)
+dot_list = [loc * dot_template for loc in Locations(dot_coords)]
+dot_object = Compound(children=dot_list)
+print(time.time() - start)
+
+print("Generating positive mold")
+start = time.time()
+
+with BuildPart() as positive_mold:
+
+    print("Importing positive mold")
+    start = time.time()
+    importer = Mesher()
+    imported_mesh = importer.read(base_positive_mold_file_path)
+    with Locations((positive_mold_w/2, positive_mold_h/2, 0)):
+        add(imported_mesh)
+    print(time.time() - start)
+
+    print("Adding dots")
+    start = time.time()
+    add(dot_object, mode=Mode.ADD)
+    print(time.time() - start)
+
+    print("Scaling mold")
+    start = time.time()
+    scaled_mold = positive_mold.part.scale(scaling_factor)
+    print(time.time() - start)
+
+    print("Exporting mold")
+    start = time.time()
+    export_stl(scaled_mold, positive_mold_file_path, tolerance=0.1, angular_tolerance=1)
+    print(time.time() - start)
