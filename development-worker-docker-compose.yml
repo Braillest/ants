@@ -15,3 +15,6 @@ networks:
   ants_development_worker:
     name: ants_development_worker
     driver: bridge
+  ants_development_queen:
+    name: ants_development_queen
+    external: true

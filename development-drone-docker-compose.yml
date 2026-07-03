@@ -15,3 +15,6 @@ networks:
   ants_development_drone:
     name: ants_development_drone
     driver: bridge
+  ants_development_queen:
+    name: ants_development_queen
+    external: true

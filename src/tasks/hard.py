@@ -1,19 +1,31 @@
-from celery import Celery
-import difflib
-import louis
-import logging
 import os
-import requests
+import re
+import difflib
+import logging
+import unicodedata
+import tempfile
+from celery import Celery
+import redis
+import louis
+from build123d import *
+import io
+
+from config import mold as mold_config
 
 backend = os.getenv("CELERY_RESULT_BACKEND")
 broker = os.getenv("CELERY_BROKER_URL")
-drone = Celery("ants", backend=backend, broker=broker)
-drone.config_from_object("config.drone")
+worker = Celery("ants", backend=backend, broker=broker)
+worker.config_from_object("config.worker")
+redis_client = redis.from_url(backend or "redis://ants_development_queen_redis:6379/0")
 
 queen_url = os.getenv("QUEEN_URL")
-character_x_count = 32
-character_y_count = 26
-space_character = "\u2800"
+
+# Config-derived globals
+character_x_count = mold_config["cell_x_count"]
+character_y_count = mold_config["cell_y_count"]
+space_character = mold_config["space_character"]
+
+# Task globals
 remove_trailing_whitespace = True
 TRANSLATION_TABLE = ["braille-patterns.cti", "en-ueb-g2.ctb"]
 PUNCT_MAP = {
@@ -25,70 +37,123 @@ PUNCT_MAP = {
     "–": "-",
     "…": "...",
 }
+# Health check.
+@worker.task
+def health():
+    return True
 
-@drone.task
-def add(x, y):
-    return x + y
-
-# Query queen for stored document and store it in redis under the specified key.
-@drone.task
-def file_storage_to_redis(sub_url, redis_key):
-    url = f"{queen_url}/{sub_url}"
-    queen_response = requests.get(url)
-
-    # Handle if request fails.
-    if queen_response.status_code != 200:
-        logging.error(f"Failed to download document {url}")
-        return None
-
-    queen_data = queen_response.json()
-
-    # Handle if error is present.
-    if "error" in queen_data:
-        logging.error(f"Failed to get contents from {url}")
-        logging.error(queen_data["error"])
-        return None
-
-    # Handle if contents is not present.
-    if "contents" not in queen_data:
-        logging.error(f"Failed to get contents from {url}")
-        return None
-
-    queen_contents = queen_data["contents"]
-    redis_client.set(redis_key, queen_contents)
-    return None
-
-# Query redis and upload it to queen file storage under the specified key.
-@drone.task
-def upload_document(redis_key, sub_url):
-    url = f"{queen_url}/{sub_url}"
-    redis_response = redis_client.get(redis_key)
+# Task to query redis and generate mold
+@worker.task
+def generate_positive_mold(redis_key_a, redis_key_b):
+    redis_response = redis_client.get(redis_key_a)
 
     # Handle if redis client does not return a value.
     if redis_response is None:
-        logging.error(f"Failed to get redis data {redis_key}")
+        logging.error(f"Failed to get redis data {redis_key_a}")
         return None
 
-    redis_data = redis_response.decode("utf-8")
-    queen_response = requests.post(url, json=redis_data)
+    braille_text = redis_response.decode("utf-8")
+    lines = braille_text.splitlines()
 
-    # Handle if request fails.
-    if queen_response.status_code != 200:
-        logging.error(f"Failed to upload document {url}")
-        return None
+    # Load configuration
+    scaling_factor = mold_config["scaling_factor"]
+    space_character = mold_config["space_character"]
+    paper_d = mold_config["paper_d"]
+    cell_y_count = mold_config["cell_y_count"]
+    slot_w = mold_config["slot_w"]
+    paper_tolerance = mold_config["paper_tolerance"]
+    cell_w = mold_config["cell_w"]
+    cell_padding_x = mold_config["cell_padding_x"]
+    cell_h = mold_config["cell_h"]
+    cell_padding_y = mold_config["cell_padding_y"]
+    cell_spacing = mold_config["cell_spacing"]
+    pin_w = mold_config["pin_w"]
+    pin_h = mold_config["pin_h"]
+    pin_d = mold_config["pin_d"]
+    positive_mold_backplate_d = mold_config["positive_mold_backplate_d"]
+    dot_d = mold_config["dot_d"]
+    dot_r = mold_config["dot_r"]
+    positive_mold_w = mold_config["positive_mold_w"]
+    positive_mold_h = mold_config["positive_mold_h"]
 
-    queen_data = queen_response.json()
+    # Generate dot coordinates
+    dot_coords = []
+    for line_index, line in enumerate(lines[0:cell_y_count]):
+        x_offset = slot_w + paper_tolerance + (3 * cell_w) + cell_padding_x
+        y_offset = (cell_y_count - line_index) * cell_h + cell_padding_y
+        text = line.rstrip()
 
-    # Handle if error is present.
-    if "error" in queen_data:
-        logging.error(f"Failed to upload document {url}")
-        logging.error(queen_data["error"])
-        return None
+        for character in text:
+            delta = ord(character) - ord(space_character)
+            binary = f"{delta:06b}"[::-1]
+            for i, (dx, dy) in enumerate([(0, 2), (0, 1), (0, 0), (1, 2), (1, 1), (1, 0)]):
+                if binary[i] == "1":
+                    dot_coords.append((
+                        x_offset + dx * cell_spacing,
+                        y_offset + dy * cell_spacing,
+                        positive_mold_backplate_d + (dot_d / 2)
+                    ))
+            x_offset += cell_w
+
+    # Generate positive mold
+    with BuildPart() as positive_mold:
+        # Create backplate aligned to the positive quadrant (Align.MIN)
+        backplate = Box(
+            positive_mold_w, 
+            positive_mold_h, 
+            positive_mold_backplate_d, 
+            align=(Align.MIN, Align.MIN, Align.MIN)
+        )
+
+        # Create and add the left and right side rails.
+        rail_template = Box(slot_w, positive_mold_h, positive_mold_backplate_d + paper_d)
+        left_rail_location = (slot_w / 2, positive_mold_h / 2, positive_mold_backplate_d + paper_d / 2)
+        right_rail_location = (positive_mold_w - slot_w / 2, positive_mold_h / 2, positive_mold_backplate_d + paper_d / 2)
+        add(Compound(children=Locations([left_rail_location, right_rail_location]) * rail_template))
+
+        # Create a list of all left side pin locations.
+        left_pin_locations = []
+        for y_index in range(0, cell_y_count, 2):
+            left_pin_locations.append((slot_w / 2, y_index * cell_h, positive_mold_backplate_d + paper_d + (pin_d / 2)))
+
+        # Create a list of all right side pin locations.
+        right_pin_locations = []
+        for y_index in range(0, cell_y_count, 2):
+            right_pin_locations.append((positive_mold_w - slot_w / 2, y_index * cell_h, positive_mold_backplate_d + paper_d + (pin_d / 2)))
+
+        # Create the left side pins.
+        pin_template = Box(pin_w, pin_h, pin_d)
+        # Draft the right edge to have a 30 degree overhang.
+        left_pin_template = pin_template.draft(
+            axis=(0, 1, 0),
+            angle=30,
+        )
+        add(Compound(children=Locations(left_pin_locations) * left_pin_template))
+
+        # Create and add the left and right side pins.
+        right_pin_template = pin_template.draft(
+            axis=(0, -1, 0),
+            angle=30,
+        )
+        add(Compound(children=Locations(right_pin_locations) * right_pin_template))
+
+        # Add dots.
+        if dot_coords:
+            dot_template = Sphere(dot_r, arc_size1=0)
+            add(Compound(children=Locations(dot_coords) * dot_template))
+
+        # Scale the mold in the X and Y dimensions to account for shrinkage.
+        positive_mold_object = positive_mold.part.scale(scaling_factor, scaling_factor, 1)
+
+        # Export the scaled mold to a BytesIO buffer and set it in redis.
+        with io.BytesIO() as buffer:
+            export_stl(positive_mold_object, buffer, tolerance=0.1, angular_tolerance=1)
+            redis_client.set(redis_key_b, buffer.getvalue())
 
     return None
 
 # Strip project gutenberg header and footer.
-@drone.task
+@worker.task
 def strip_gutenberg_header_footer(redis_key_a, redis_key_b):
     START = r"\*\*\* START OF (THIS|THE) PROJECT GUTENBERG EBOOK .* \*\*\*"
     END   = r"\*\*\* END OF (THIS|THE) PROJECT GUTENBERG EBOOK .* \*\*\*"
@@ -99,7 +164,7 @@ def strip_gutenberg_header_footer(redis_key_a, redis_key_b):
     if redis_response is None:
         logging.error(f"Failed to get redis data {document_id_a}")
         return None
-    
+
     text = redis_response.decode("utf-8")
     text = re.split(START, text, maxsplit=1)[-1]
 
@@ -119,15 +184,15 @@ def strip_gutenberg_header_footer(redis_key_a, redis_key_b):
     return None
 
 # Query redis and serialize document/remove offending characters.
-@drone.task
+@worker.task
 def serialize_document(redis_key_a, redis_key_b):
     redis_response = redis_client.get(redis_key_a)
-    
+
     # Handle if redis clinet does not return a value.
     if redis_response is None:
         logging.error(f"Failed to get redis data {redis_key_a}")
         return None
-    
+
     # Strip offending characters.
     text = redis_response.decode("utf-8")
 
@@ -167,7 +232,7 @@ def serialize_document(redis_key_a, redis_key_b):
 
 # Query redis and generate a git diff between original and modified formats.
 # NOTE: Used in multiple steps.
-@drone.task
+@worker.task
 def diff_documents(redis_key_a, redis_key_b, redis_key_c):
 
     text_a = redis_client.get(redis_key_a)
@@ -210,7 +275,7 @@ def diff_documents(redis_key_a, redis_key_b, redis_key_c):
     return None
 
 # Query redis and use liblouis to translate document to braille.
-@drone.task
+@worker.task
 def translate_document(redis_key_a, redis_key_b):
     text = redis_client.get(redis_key_a)
 
@@ -227,7 +292,6 @@ def translate_document(redis_key_a, redis_key_b):
         if remove_trailing_whitespace:
             line = line.rstrip()
         braille_lines.append(louis.translateString(TRANSLATION_TABLE, line))
-    
     braille_text = "\n".join(braille_lines)
 
     # Handle if braille_text is empty.
@@ -239,7 +303,7 @@ def translate_document(redis_key_a, redis_key_b):
     return None
 
 # Query redis and use liblouis to backtranslate document to text.
-@drone.task
+@worker.task
 def backtranslate_document(redis_key_a, redis_key_b):
     text = redis_client.get(redis_key_a)
 
@@ -256,7 +320,6 @@ def backtranslate_document(redis_key_a, redis_key_b):
         if remove_trailing_whitespace:
             line = line.rstrip()
         text_lines.append(louis.backtranslateString(TRANSLATION_TABLE, line))
-    
     text_text = "\n".join(text_lines)
 
     # Handle if text_text is empty.
@@ -268,7 +331,7 @@ def backtranslate_document(redis_key_a, redis_key_b):
     return None
 
 # Query redis and format braille to specified format (eg braillest standard).
-@drone.task
+@worker.task
 def format_braille(redis_key_a, redis_key_b):
     text = redis_client.get(redis_key_a)
 
@@ -328,7 +391,7 @@ def format_braille(redis_key_a, redis_key_b):
     return None
 
 # Query redis and paginate braille.
-@drone.task
+@worker.task
 def paginate_braille(redis_key_a, redis_key_b):
     pages = []
     current_page = []
@@ -381,12 +444,12 @@ def paginate_braille(redis_key_a, redis_key_b):
 
     if current_page:
         pages.append(current_page)
-    
+
     redis_client.set(redis_key_b, pages)
     return None
 
 # Generate cover-art from stored html.
-@drone.task
+@worker.task
 def generate_cover_art(redis_key_a, query_string, selector, redis_key_b):
     redis_response = redis_client.get(redis_key_a)
 
@@ -409,9 +472,3 @@ def generate_cover_art(redis_key_a, query_string, selector, redis_key_b):
     redis_client.set(redis_key_b, screenshot)
 
     return None
-
-# TODO: task to upload queen repo to github
-
-# TODO: task to upload molds to thingiverse
-
-# TODO: task to import molds from thingiverse into printables

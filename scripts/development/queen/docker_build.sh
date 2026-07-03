@@ -1,3 +1,3 @@
 #!/bin/bash
 
-docker compose -f development-queen-docker-compose.yml build --no-cache
+docker compose -f development-queen-docker-compose.yml build

@@ -5,7 +5,6 @@ WORKDIR /drone
 # Update base image
 RUN apt update
 RUN apt upgrade -y
-RUN apt install -y curl
 RUN apt install -y autoconf
 RUN apt install -y build-essential
 
@@ -16,12 +15,6 @@ RUN python -m venv /env
 RUN /env/bin/pip install --upgrade pip
 RUN /env/bin/pip install celery[librabbitmq,redis]
 RUN /env/bin/pip install gevent
-
-# Install louis lib
-RUN /env/bin/pip install setuptools
-RUN curl -LO https://github.com/liblouis/liblouis/releases/download/v3.31.0/liblouis-3.31.0.tar.gz
-RUN tar xfz liblouis-3.31.0.tar.gz
-RUN cd liblouis-3.31.0 && autoconf && ./configure && make -j $(nproc) && make -j $(nproc) install && cd python && /env/bin/pip install .
 
 # Install python deps
 RUN /env/bin/pip install requests
@@ -35,4 +28,4 @@ RUN groupadd -r celery
 RUN useradd -r -g celery celery
 USER celery
 
-ENTRYPOINT /env/bin/celery -A drone worker -P gevent --loglevel=INFO
+ENTRYPOINT /env/bin/celery -A soft worker -P gevent --loglevel=INFO

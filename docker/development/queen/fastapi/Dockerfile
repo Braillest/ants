@@ -16,7 +16,7 @@ RUN python3 -m venv /env
 RUN /env/bin/pip install --upgrade pip
 RUN /env/bin/pip install celery[librabbitmq,redis]
 RUN /env/bin/pip install requests
-RUN /env/bin/pip install fastapi
+RUN /env/bin/pip install fastapi[standard]
 
-ENTRYPOINT sleep infinity
-# ENTRYPOINT . /env/bin/activate && python task-server.py
+# ENTRYPOINT sleep infinity
+ENTRYPOINT /env/bin/fastapi dev task-server.py --host 0.0.0.0
