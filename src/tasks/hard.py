@@ -16,7 +16,7 @@ backend = os.getenv("CELERY_RESULT_BACKEND")
 broker = os.getenv("CELERY_BROKER_URL")
 worker = Celery("ants", backend=backend, broker=broker)
 worker.config_from_object("config.worker")
-redis_client = redis.from_url(backend or "redis://host.docker.internal:6379/0")
+redis_client = redis.from_url(backend or "redis://ants_development_queen_redis:6379/0")
 
 queen_url = os.getenv("QUEEN_URL")
 

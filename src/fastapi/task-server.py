@@ -6,7 +6,7 @@ import redis
 celery_broker = os.getenv("CELERY_BROKER_URL")
 celery_backend = os.getenv("CELERY_RESULT_BACKEND")
 celery = Celery("task-server", broker=celery_broker, backend=celery_backend)
-redis_client = redis.from_url(celery_backend or "redis://host.docker.internal:6379/0")
+redis_client = redis.from_url(celery_backend or "redis://ants_development_queen_redis:6379/0")
 
 # Manual config
 celery.conf.update(
